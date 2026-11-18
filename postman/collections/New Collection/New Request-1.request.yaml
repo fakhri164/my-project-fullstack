@@ -1,0 +1,14 @@
+$kind: http-request
+name: New Request
+url: /tickets
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \  \"title\": \"Laptop tidak bisa menyala\",\r
+
+    \  \"description\": \"Laptop mengalami masalah booting\"\r
+
+    }"
+order: 688285369205600
