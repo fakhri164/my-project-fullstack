@@ -16,6 +16,9 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+import ThemeToggle from "./components/UI/ThemeToggle";
+import LoginForm from "./components/auth/LoginForm";
+
 const API_URL =
   import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -34,11 +37,6 @@ function App() {
     } catch {
       return null;
     }
-  });
-
-  const [loginData, setLoginData] = useState({
-    username: "",
-    password: "",
   });
 
   const [loginLoading, setLoginLoading] = useState(false);
@@ -99,9 +97,7 @@ function App() {
   // LOGIN
   // =========================
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-
+  const handleLogin = async (credentials) => {
     setLoginLoading(true);
     setLoginError("");
 
@@ -111,13 +107,15 @@ function App() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(loginData),
+        body: JSON.stringify(credentials),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || data.message || "Login gagal");
+        throw new Error(
+          data.error || data.message || "Login gagal"
+        );
       }
 
       localStorage.setItem("token", data.token);
@@ -125,11 +123,6 @@ function App() {
 
       setToken(data.token);
       setCurrentUser(data.user);
-
-      setLoginData({
-        username: "",
-        password: "",
-      });
 
       showToast("Login berhasil!");
     } catch (error) {
@@ -157,7 +150,10 @@ function App() {
 
       if (response.status === 401 || response.status === 403) {
         handleLogout();
-        showToast("Sesi login berakhir. Silakan login kembali.", "error");
+        showToast(
+          "Sesi login berakhir. Silakan login kembali.",
+          "error"
+        );
         return;
       }
 
@@ -314,7 +310,10 @@ function App() {
 
   const deleteTicket = async (id) => {
     if (!isAdmin) {
-      showToast("Hanya admin yang bisa menghapus ticket", "error");
+      showToast(
+        "Hanya admin yang bisa menghapus ticket",
+        "error"
+      );
       return;
     }
 
@@ -388,86 +387,11 @@ function App() {
 
   if (!token || !currentUser) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
-        <div className="w-full max-w-md">
-          <div className="bg-white rounded-2xl shadow-2xl p-8">
-            <div className="flex justify-center mb-6">
-              <div className="bg-blue-600 p-4 rounded-2xl">
-                <Ticket size={32} className="text-white" />
-              </div>
-            </div>
-
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-slate-900">
-                Ticket Tracker
-              </h1>
-              <p className="text-slate-500 mt-2">
-                Login untuk mengakses dashboard
-              </p>
-            </div>
-
-            <form onSubmit={handleLogin} className="space-y-5">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Username
-                </label>
-
-                <input
-                  type="text"
-                  value={loginData.username}
-                  onChange={(e) =>
-                    setLoginData({
-                      ...loginData,
-                      username: e.target.value,
-                    })
-                  }
-                  placeholder="Masukkan username"
-                  className="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Password
-                </label>
-
-                <input
-                  type="password"
-                  value={loginData.password}
-                  onChange={(e) =>
-                    setLoginData({
-                      ...loginData,
-                      password: e.target.value,
-                    })
-                  }
-                  placeholder="Masukkan password"
-                  className="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-
-              {loginError && (
-                <div className="bg-red-50 text-red-600 text-sm p-3 rounded-xl">
-                  {loginError}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loginLoading}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition"
-              >
-                {loginLoading ? "Memproses..." : "Login"}
-              </button>
-            </form>
-
-            <p className="text-center text-xs text-slate-400 mt-8">
-              IT Ticket Tracker
-            </p>
-          </div>
-        </div>
-      </div>
+      <LoginForm
+        onLogin={handleLogin}
+        loading={loginLoading}
+        error={loginError}
+      />
     );
   }
 
@@ -476,33 +400,38 @@ function App() {
   // =========================
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800">
+    <div className="min-h-screen bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-300">
+
       {/* HEADER */}
 
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
+      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-20 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+
           <div className="flex items-center gap-3">
             <div className="bg-blue-600 p-2 rounded-xl">
               <Ticket className="text-white" size={24} />
             </div>
 
             <div>
-              <h1 className="text-xl font-bold text-slate-900">
+              <h1 className="text-xl font-bold text-slate-900 dark:text-white">
                 Ticket Tracker
               </h1>
-              <p className="text-xs text-slate-500">
+
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 IT Support Management
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <ThemeToggle />
+
             <div className="hidden sm:block text-right">
-              <p className="text-sm font-semibold text-slate-800">
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
                 {currentUser.username}
               </p>
 
-              <p className="text-xs text-slate-500 flex items-center justify-end gap-1">
+              <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center justify-end gap-1">
                 {isAdmin ? (
                   <ShieldCheck size={12} />
                 ) : (
@@ -514,7 +443,7 @@ function App() {
 
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 border border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 px-3 py-2 rounded-xl text-sm transition"
+              className="flex items-center gap-2 border border-slate-200 dark:border-slate-700 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 hover:border-red-200 px-3 py-2 rounded-xl text-sm transition"
             >
               <LogOut size={16} />
               <span className="hidden sm:inline">Logout</span>
@@ -524,14 +453,16 @@ function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
+
         {/* PAGE TITLE */}
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
               Dashboard
             </h2>
-            <p className="text-slate-500 mt-1">
+
+            <p className="text-slate-500 dark:text-slate-400 mt-1">
               Kelola dan pantau semua laporan IT support.
             </p>
           </div>
@@ -579,21 +510,24 @@ function App() {
 
         {/* TICKET LIST */}
 
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm">
-          <div className="p-6 border-b border-slate-100">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm transition-colors duration-300">
+
+          <div className="p-6 border-b border-slate-100 dark:border-slate-800">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+
               <div>
-                <h3 className="font-bold text-lg text-slate-900">
+                <h3 className="font-bold text-lg text-slate-900 dark:text-white">
                   Ticket List
                 </h3>
-                <p className="text-sm text-slate-500 mt-1">
+
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                   Daftar seluruh laporan yang masuk.
                 </p>
               </div>
 
               <button
                 onClick={fetchTickets}
-                className="flex items-center gap-2 text-sm text-slate-500 hover:text-blue-600 transition"
+                className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 hover:text-blue-600 transition"
               >
                 <RefreshCw size={15} />
                 Refresh
@@ -601,6 +535,7 @@ function App() {
             </div>
 
             <div className="flex flex-col md:flex-row gap-3 mt-5">
+
               <div className="relative flex-1">
                 <Search
                   size={18}
@@ -612,14 +547,14 @@ function App() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Cari ticket..."
-                  className="w-full border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl pl-11 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <select
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                className="border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                className="border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">Semua Status</option>
                 <option value="open">Open</option>
@@ -633,7 +568,8 @@ function App() {
 
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+
+              <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs uppercase">
                 <tr>
                   <th className="px-6 py-4 font-semibold">Ticket</th>
                   <th className="px-6 py-4 font-semibold">Description</th>
@@ -643,7 +579,8 @@ function App() {
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+
                 {loading ? (
                   <tr>
                     <td
@@ -663,9 +600,11 @@ function App() {
                         size={36}
                         className="mx-auto text-slate-300 mb-3"
                       />
-                      <p className="text-slate-500 font-medium">
+
+                      <p className="text-slate-500 dark:text-slate-400 font-medium">
                         Tidak ada ticket ditemukan
                       </p>
+
                       <p className="text-sm text-slate-400 mt-1">
                         Coba ubah pencarian atau tambahkan ticket baru.
                       </p>
@@ -675,18 +614,19 @@ function App() {
                   filteredTickets.map((ticket) => (
                     <tr
                       key={ticket.id}
-                      className="hover:bg-slate-50 transition"
+                      className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition"
                     >
                       <td className="px-6 py-4">
-                        <p className="font-semibold text-slate-800">
+                        <p className="font-semibold text-slate-800 dark:text-slate-100">
                           {ticket.title}
                         </p>
+
                         <p className="text-xs text-slate-400 mt-1">
                           ID #{ticket.id}
                         </p>
                       </td>
 
-                      <td className="px-6 py-4 text-sm text-slate-500 max-w-xs">
+                      <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400 max-w-xs">
                         <p className="truncate">
                           {ticket.description || "-"}
                         </p>
@@ -696,7 +636,7 @@ function App() {
                         <StatusBadge status={ticket.status} />
                       </td>
 
-                      <td className="px-6 py-4 text-sm text-slate-500">
+                      <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400">
                         {ticket.created_at
                           ? new Date(
                               ticket.created_at.replace(" ", "T") + "Z"
@@ -706,9 +646,10 @@ function App() {
 
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
+
                           <button
                             onClick={() => setSelectedTicket(ticket)}
-                            className="text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium transition"
+                            className="text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 px-3 py-2 rounded-lg text-sm font-medium transition"
                           >
                             Detail
                           </button>
@@ -716,22 +657,24 @@ function App() {
                           {isAdmin && (
                             <button
                               onClick={() => deleteTicket(ticket.id)}
-                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"
+                              className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition"
                               title="Hapus ticket"
                             >
                               <Trash2 size={17} />
                             </button>
                           )}
+
                         </div>
                       </td>
                     </tr>
                   ))
                 )}
+
               </tbody>
             </table>
           </div>
 
-          <div className="px-6 py-4 border-t border-slate-100 text-sm text-slate-400">
+          <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 text-sm text-slate-400">
             Menampilkan {filteredTickets.length} dari {tickets.length} ticket
           </div>
         </div>
@@ -741,30 +684,34 @@ function App() {
 
       {selectedTicket && (
         <Modal onClose={() => setSelectedTicket(null)}>
+
           <div className="flex items-start justify-between mb-6">
             <div>
               <p className="text-sm text-slate-400">
                 Ticket #{selectedTicket.id}
               </p>
-              <h3 className="text-xl font-bold text-slate-900 mt-1">
+
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mt-1">
                 {selectedTicket.title}
               </h3>
             </div>
 
             <button
               onClick={() => setSelectedTicket(null)}
-              className="p-2 hover:bg-slate-100 rounded-lg"
+              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"
             >
               <X size={20} />
             </button>
           </div>
 
           <div className="space-y-5">
+
             <div>
               <p className="text-sm text-slate-400 mb-2">
                 Description
               </p>
-              <p className="text-slate-700 whitespace-pre-wrap">
+
+              <p className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
                 {selectedTicket.description || "Tidak ada deskripsi"}
               </p>
             </div>
@@ -781,7 +728,7 @@ function App() {
                 onChange={(e) =>
                   updateTicketStatus(selectedTicket, e.target.value)
                 }
-                className="w-full mt-3 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full mt-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="open">Open</option>
                 <option value="in progress">In Progress</option>
@@ -789,7 +736,8 @@ function App() {
               </select>
             </div>
 
-            <div className="flex flex-wrap gap-3 pt-4 border-t border-slate-100">
+            <div className="flex flex-wrap gap-3 pt-4 border-t border-slate-100 dark:border-slate-700">
+
               <button
                 onClick={() => {
                   setEditTicket({ ...selectedTicket });
@@ -804,12 +752,13 @@ function App() {
               {isAdmin && (
                 <button
                   onClick={() => deleteTicket(selectedTicket.id)}
-                  className="flex items-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 px-4 py-3 rounded-xl font-medium transition"
+                  className="flex items-center gap-2 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-950/60 text-red-600 px-4 py-3 rounded-xl font-medium transition"
                 >
                   <Trash2 size={16} />
                   Delete
                 </button>
               )}
+
             </div>
           </div>
         </Modal>
@@ -819,27 +768,30 @@ function App() {
 
       {showNewTicket && (
         <Modal onClose={() => setShowNewTicket(false)}>
+
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h3 className="text-xl font-bold text-slate-900">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white">
                 Create New Ticket
               </h3>
-              <p className="text-sm text-slate-500 mt-1">
+
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                 Buat laporan IT support baru.
               </p>
             </div>
 
             <button
               onClick={() => setShowNewTicket(false)}
-              className="p-2 hover:bg-slate-100 rounded-lg"
+              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"
             >
               <X size={20} />
             </button>
           </div>
 
           <form onSubmit={createTicket} className="space-y-5">
+
             <div>
-              <label className="block text-sm font-medium mb-2">
+              <label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">
                 Title
               </label>
 
@@ -853,13 +805,13 @@ function App() {
                   })
                 }
                 placeholder="Contoh: Komputer tidak bisa menyala"
-                className="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">
+              <label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">
                 Description
               </label>
 
@@ -873,7 +825,7 @@ function App() {
                 }
                 placeholder="Jelaskan masalah yang terjadi..."
                 rows="4"
-                className="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                className="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               />
             </div>
 
@@ -883,6 +835,7 @@ function App() {
             >
               Create Ticket
             </button>
+
           </form>
         </Modal>
       )}
@@ -891,22 +844,24 @@ function App() {
 
       {editTicket && (
         <Modal onClose={() => setEditTicket(null)}>
+
           <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold text-slate-900">
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white">
               Edit Ticket
             </h3>
 
             <button
               onClick={() => setEditTicket(null)}
-              className="p-2 hover:bg-slate-100 rounded-lg"
+              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"
             >
               <X size={20} />
             </button>
           </div>
 
           <form onSubmit={saveEditTicket} className="space-y-5">
+
             <div>
-              <label className="block text-sm font-medium mb-2">
+              <label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">
                 Title
               </label>
 
@@ -919,13 +874,13 @@ function App() {
                     title: e.target.value,
                   })
                 }
-                className="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">
+              <label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">
                 Description
               </label>
 
@@ -938,12 +893,12 @@ function App() {
                   })
                 }
                 rows="4"
-                className="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                className="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">
+              <label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">
                 Status
               </label>
 
@@ -955,7 +910,7 @@ function App() {
                     status: e.target.value,
                   })
                 }
-                className="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="open">Open</option>
                 <option value="in progress">In Progress</option>
@@ -969,6 +924,7 @@ function App() {
             >
               Save Changes
             </button>
+
           </form>
         </Modal>
       )}
@@ -992,6 +948,7 @@ function App() {
           </span>
         </div>
       )}
+
     </div>
   );
 }
@@ -1009,11 +966,15 @@ function StatCard({ title, value, icon, color }) {
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm transition-colors duration-300">
       <div className="flex items-center justify-between">
+
         <div>
-          <p className="text-sm text-slate-500">{title}</p>
-          <h3 className="text-3xl font-bold text-slate-900 mt-2">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            {title}
+          </p>
+
+          <h3 className="text-3xl font-bold text-slate-900 dark:text-white mt-2">
             {value}
           </h3>
         </div>
@@ -1021,6 +982,7 @@ function StatCard({ title, value, icon, color }) {
         <div className={`p-3 rounded-xl ${colors[color]}`}>
           {icon}
         </div>
+
       </div>
     </div>
   );
@@ -1032,9 +994,11 @@ function StatCard({ title, value, icon, color }) {
 
 function StatusBadge({ status }) {
   const styles = {
-    open: "bg-orange-50 text-orange-600",
-    "in progress": "bg-purple-50 text-purple-600",
-    resolved: "bg-green-50 text-green-600",
+    open: "bg-orange-50 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400",
+    "in progress":
+      "bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400",
+    resolved:
+      "bg-green-50 text-green-600 dark:bg-green-950/40 dark:text-green-400",
   };
 
   const labels = {
@@ -1046,7 +1010,8 @@ function StatusBadge({ status }) {
   return (
     <span
       className={`inline-flex px-3 py-1.5 rounded-full text-xs font-semibold ${
-        styles[status] || "bg-slate-100 text-slate-600"
+        styles[status] ||
+        "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
       }`}
     >
       {labels[status] || status}
@@ -1065,7 +1030,7 @@ function Modal({ children, onClose }) {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto"
+        className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {children}
