@@ -16,6 +16,11 @@ import {
 
 import ThemeToggle from "../UI/ThemeToggle";
 
+// URL backend
+const API_URL = (
+  import.meta.env.VITE_API_URL || "http://localhost:3000"
+).replace(/\/$/, "");
+
 export default function LoginForm({
   onLogin,
   loading,
@@ -39,34 +44,104 @@ export default function LoginForm({
   });
 
   const [registerMessage, setRegisterMessage] = useState("");
+  const [registerSuccess, setRegisterSuccess] = useState(false);
+  const [registerLoading, setRegisterLoading] = useState(false);
+
+  // ======================================
+  // LOGIN
+  // ======================================
 
   const handleLoginSubmit = (e) => {
     e.preventDefault();
     onLogin(loginData);
   };
 
-  const handleRegisterSubmit = (e) => {
+  // ======================================
+  // REGISTER
+  // ======================================
+
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
+
     setRegisterMessage("");
+    setRegisterSuccess(false);
 
     if (registerData.password !== registerData.confirmPassword) {
-      setRegisterMessage("Password dan konfirmasi password tidak sama.");
+      setRegisterMessage(
+        "Kata sandi dan konfirmasi kata sandi tidak sesuai."
+      );
       return;
     }
 
     if (registerData.password.length < 6) {
-      setRegisterMessage("Password minimal harus 6 karakter.");
+      setRegisterMessage(
+        "Kata sandi harus terdiri dari minimal 6 karakter."
+      );
       return;
     }
 
-    setRegisterMessage(
-      "Tampilan registrasi sudah siap. Integrasi pendaftaran akun akan dibuat pada tahap backend."
-    );
+    setRegisterLoading(true);
+
+    try {
+      const response = await fetch(`${API_URL}/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          full_name: registerData.fullName.trim(),
+          username: registerData.username.trim(),
+          email: registerData.email.trim(),
+          password: registerData.password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || "Pendaftaran gagal. Silakan coba kembali."
+        );
+      }
+
+      setRegisterSuccess(true);
+      setRegisterMessage(
+        data.message ||
+        "Pendaftaran berhasil. Akun Anda sedang menunggu persetujuan administrator."
+      );
+
+      setRegisterData({
+        fullName: "",
+        username: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+      });
+
+      setShowPassword(false);
+      setShowConfirmPassword(false);
+
+    } catch (err) {
+      setRegisterSuccess(false);
+
+      setRegisterMessage(
+        err.message === "Failed to fetch"
+          ? "Tidak dapat terhubung ke server. Silakan periksa koneksi Anda."
+          : err.message
+      );
+    } finally {
+      setRegisterLoading(false);
+    }
   };
+
+  // ======================================
+  // CHANGE MODE
+  // ======================================
 
   const changeMode = (nextMode) => {
     setMode(nextMode);
     setRegisterMessage("");
+    setRegisterSuccess(false);
   };
 
   return (
@@ -92,7 +167,7 @@ export default function LoginForm({
                 Ticket Tracker
               </h1>
               <p className="text-xs text-blue-200">
-                IT Support Management
+                Sistem Manajemen Dukungan TI
               </p>
             </div>
           </div>
@@ -100,47 +175,47 @@ export default function LoginForm({
           <div className="relative z-10 max-w-md">
             <div className="inline-flex items-center gap-2 px-3 py-2 rounded-full bg-white/10 border border-white/10 text-blue-100 text-xs mb-6">
               <ShieldCheck size={14} />
-              Enterprise Support Platform
+              Platform Dukungan TI Terintegrasi
             </div>
 
             <h2 className="text-4xl xl:text-5xl font-bold leading-tight">
-              Manage IT issues.
+              Kelola masalah TI.
               <span className="text-blue-300">
-                {" "}Stay productive.
+                {" "}Tingkatkan produktivitas.
               </span>
             </h2>
 
             <p className="text-blue-100/70 mt-6 leading-relaxed">
-              Satu tempat untuk mengelola laporan,
-              memantau progres, dan memastikan
-              setiap masalah IT tertangani.
+              Satu platform terintegrasi untuk mengelola laporan,
+              memantau perkembangan, dan memastikan setiap
+              permasalahan teknologi informasi ditangani dengan baik.
             </p>
 
             <div className="grid grid-cols-2 gap-4 mt-10">
               <div className="bg-white/10 border border-white/10 rounded-2xl p-4">
                 <ShieldCheck size={20} className="text-blue-300 mb-3" />
                 <p className="font-semibold text-sm">
-                  Secure Access
+                  Akses Aman
                 </p>
                 <p className="text-xs text-blue-200 mt-1">
-                  Protected accounts
+                  Perlindungan akun pengguna
                 </p>
               </div>
 
               <div className="bg-white/10 border border-white/10 rounded-2xl p-4">
                 <Ticket size={20} className="text-blue-300 mb-3" />
                 <p className="font-semibold text-sm">
-                  Ticket Management
+                  Manajemen Tiket
                 </p>
                 <p className="text-xs text-blue-200 mt-1">
-                  Track every issue
+                  Pemantauan setiap laporan
                 </p>
               </div>
             </div>
           </div>
 
           <p className="relative z-10 text-xs text-blue-200/60">
-            © 2026 IT Ticket Tracker. All rights reserved.
+            © 2026 IT Ticket Tracker. Hak cipta dilindungi.
           </p>
         </div>
 
@@ -179,7 +254,7 @@ export default function LoginForm({
                 }`}
               >
                 <LogIn size={17} />
-                Sign In
+                Masuk
               </button>
 
               <button
@@ -192,7 +267,7 @@ export default function LoginForm({
                 }`}
               >
                 <UserPlus size={17} />
-                Sign Up
+                Daftar
               </button>
             </div>
 
@@ -202,15 +277,15 @@ export default function LoginForm({
               <>
                 <div className="mb-8">
                   <p className="text-sm font-semibold text-blue-600 dark:text-blue-400 mb-3">
-                    WELCOME BACK
+                    SELAMAT DATANG KEMBALI
                   </p>
 
                   <h2 className="text-3xl font-bold text-slate-900 dark:text-white">
-                    Sign in to your account
+                    Masuk ke Akun Anda
                   </h2>
 
                   <p className="text-slate-500 dark:text-slate-400 mt-3 text-sm">
-                    Masukkan akun kamu untuk melanjutkan ke dashboard.
+                    Silakan masukkan informasi akun Anda untuk melanjutkan ke dashboard.
                   </p>
                 </div>
 
@@ -239,7 +314,7 @@ export default function LoginForm({
 
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                      Password
+                      Kata Sandi
                     </label>
 
                     <div className="relative">
@@ -252,7 +327,7 @@ export default function LoginForm({
                             password: e.target.value,
                           })
                         }
-                        placeholder="Masukkan password"
+                        placeholder="Masukkan kata sandi"
                         autoComplete="current-password"
                         className="w-full px-4 py-3.5 pr-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500 transition"
                         required
@@ -262,7 +337,7 @@ export default function LoginForm({
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-white"
-                        aria-label="Toggle password visibility"
+                        aria-label="Tampilkan atau sembunyikan kata sandi"
                       >
                         {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
                       </button>
@@ -280,7 +355,7 @@ export default function LoginForm({
                     disabled={loading}
                     className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5"
                   >
-                    {loading ? "Signing in..." : "Sign In"}
+                    {loading ? "Sedang masuk..." : "Masuk"}
                     {!loading && <ArrowRight size={18} />}
                   </button>
 
@@ -294,15 +369,15 @@ export default function LoginForm({
               <>
                 <div className="mb-7">
                   <p className="text-sm font-semibold text-blue-600 dark:text-blue-400 mb-3">
-                    CREATE ACCOUNT
+                    BUAT AKUN BARU
                   </p>
 
                   <h2 className="text-3xl font-bold text-slate-900 dark:text-white">
-                    Create your account
+                    Daftarkan Akun Anda
                   </h2>
 
                   <p className="text-slate-500 dark:text-slate-400 mt-3 text-sm">
-                    Daftarkan akun untuk menggunakan IT Ticket Tracker.
+                    Lengkapi formulir berikut untuk mendaftarkan akun IT Ticket Tracker.
                   </p>
                 </div>
 
@@ -310,7 +385,7 @@ export default function LoginForm({
 
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                      Full Name
+                      Nama Lengkap
                     </label>
 
                     <div className="relative">
@@ -325,7 +400,8 @@ export default function LoginForm({
                             fullName: e.target.value,
                           })
                         }
-                        placeholder="Nama lengkap"
+                        placeholder="Masukkan nama lengkap"
+                        autoComplete="name"
                         className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 transition"
                         required
                       />
@@ -355,7 +431,7 @@ export default function LoginForm({
 
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                      Email Address
+                      Alamat Email
                     </label>
 
                     <div className="relative">
@@ -380,7 +456,7 @@ export default function LoginForm({
 
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                      Password
+                      Kata Sandi
                     </label>
 
                     <div className="relative">
@@ -403,7 +479,7 @@ export default function LoginForm({
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
-                        aria-label="Toggle password visibility"
+                        aria-label="Tampilkan atau sembunyikan kata sandi"
                       >
                         {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
                       </button>
@@ -412,7 +488,7 @@ export default function LoginForm({
 
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                      Confirm Password
+                      Konfirmasi Kata Sandi
                     </label>
 
                     <div className="relative">
@@ -425,7 +501,7 @@ export default function LoginForm({
                             confirmPassword: e.target.value,
                           })
                         }
-                        placeholder="Ulangi password"
+                        placeholder="Masukkan kembali kata sandi"
                         autoComplete="new-password"
                         className="w-full px-4 py-3 pr-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 transition"
                         required
@@ -435,15 +511,23 @@ export default function LoginForm({
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                         className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
-                        aria-label="Toggle confirm password visibility"
+                        aria-label="Tampilkan atau sembunyikan konfirmasi kata sandi"
                       >
                         {showConfirmPassword ? <EyeOff size={19} /> : <Eye size={19} />}
                       </button>
                     </div>
                   </div>
 
+                  {/* REGISTER MESSAGE */}
+
                   {registerMessage && (
-                    <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900 text-blue-700 dark:text-blue-300 text-sm p-4 rounded-xl flex items-start gap-2">
+                    <div
+                      className={`border text-sm p-4 rounded-xl flex items-start gap-2 ${
+                        registerSuccess
+                          ? "bg-green-50 dark:bg-green-950/40 border-green-100 dark:border-green-900 text-green-700 dark:text-green-300"
+                          : "bg-red-50 dark:bg-red-950/40 border-red-100 dark:border-red-900 text-red-600 dark:text-red-400"
+                      }`}
+                    >
                       <CheckCircle2 size={18} className="shrink-0 mt-0.5" />
                       <span>{registerMessage}</span>
                     </div>
@@ -451,23 +535,27 @@ export default function LoginForm({
 
                   <button
                     type="submit"
-                    className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5"
+                    disabled={registerLoading}
+                    className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5"
                   >
-                    Create Account
-                    <ArrowRight size={18} />
+                    {registerLoading
+                      ? "Sedang mendaftarkan akun..."
+                      : "Daftar Akun"}
+
+                    {!registerLoading && <ArrowRight size={18} />}
                   </button>
 
                 </form>
 
                 <p className="text-xs text-slate-400 text-center mt-5 leading-relaxed">
-                  Pendaftaran akun nantinya memerlukan persetujuan administrator sebelum dapat digunakan.
+                  Akun baru memerlukan persetujuan administrator sebelum dapat digunakan.
                 </p>
               </>
             )}
 
             <div className="flex items-center justify-center gap-2 mt-8 text-xs text-slate-400">
               <LockKeyhole size={14} />
-              Secure authentication powered by JWT
+              Autentikasi aman menggunakan JWT
             </div>
 
           </div>

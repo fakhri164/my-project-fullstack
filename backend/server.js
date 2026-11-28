@@ -25,7 +25,7 @@ app.use(async (req, res, next) => {
     } catch (error) {
         console.error("Database error:", error);
         res.status(500).json({
-            error: "Database initialization failed"
+            error: "Inisialisasi database gagal."
         });
     }
 });
@@ -34,32 +34,73 @@ app.use(async (req, res, next) => {
 // MIDDLEWARE AUTHENTICATION
 // ======================================
 
-const authenticateToken = (req, res, next) => {
-    const authHeader = req.headers["authorization"];
+const authenticateToken = async (req, res, next) => {
+    const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(" ")[1];
 
     if (!token) {
         return res.status(401).json({
-            error: "Access denied. Token required."
+            error: "Akses ditolak. Token autentikasi diperlukan."
         });
     }
 
     if (!JWT_SECRET) {
         return res.status(500).json({
-            error: "JWT_SECRET belum dikonfigurasi"
+            error: "Konfigurasi JWT_SECRET belum tersedia."
         });
     }
 
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) {
-            return res.status(403).json({
-                error: "Invalid or expired token"
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+
+        // Mengambil data terbaru pengguna dari database
+        const result = await db.execute({
+            sql: `
+                SELECT id, username, role, account_status
+                FROM users
+                WHERE id = ?
+            `,
+            args: [decoded.id]
+        });
+
+        const user = result.rows[0];
+
+        if (!user) {
+            return res.status(401).json({
+                error: "Akun pengguna tidak ditemukan."
             });
         }
 
-        req.user = user;
+        if (user.account_status !== "active") {
+            return res.status(403).json({
+                error: "Akun Anda tidak aktif. Silakan hubungi administrator."
+            });
+        }
+
+        req.user = {
+            id: Number(user.id),
+            username: user.username,
+            role: user.role
+        };
+
         next();
-    });
+
+    } catch (error) {
+        if (
+            error.name === "JsonWebTokenError" ||
+            error.name === "TokenExpiredError"
+        ) {
+            return res.status(403).json({
+                error: "Token autentikasi tidak valid atau telah kedaluwarsa."
+            });
+        }
+
+        console.error("Authentication error:", error);
+
+        res.status(500).json({
+            error: "Proses autentikasi gagal."
+        });
+    }
 };
 
 // ======================================
@@ -70,7 +111,7 @@ const authorizeRole = (...allowedRoles) => {
     return (req, res, next) => {
         if (!allowedRoles.includes(req.user.role)) {
             return res.status(403).json({
-                error: "Akses ditolak! Role lu tidak memiliki izin."
+                error: "Akses ditolak. Anda tidak memiliki izin untuk melakukan tindakan ini."
             });
         }
 
@@ -88,51 +129,104 @@ app.get("/", (req, res) => {
 
 // ======================================
 // REGISTER USER
+// AKUN BARU OTOMATIS PENDING
 // ======================================
 
 app.post("/register", async (req, res) => {
-    const { username, password } = req.body;
+    const { full_name, username, email, password } = req.body;
 
-    if (!username || username.trim() === "") {
+    if (!full_name || !username || !email || !password) {
         return res.status(400).json({
-            error: "Username is required"
+            error: "Seluruh kolom wajib diisi."
         });
     }
 
-    if (!password || password.length < 6) {
+    const cleanName = full_name.trim();
+    const cleanUsername = username.trim();
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanName || !cleanUsername || !cleanEmail) {
         return res.status(400).json({
-            error: "Password minimal 6 karakter"
+            error: "Data tidak boleh kosong."
         });
     }
 
-    const existingUser = await db.execute({
-        sql: "SELECT * FROM users WHERE username = ?",
-        args: [username.trim()]
+    if (cleanUsername.length < 3) {
+        return res.status(400).json({
+            error: "Username harus terdiri dari minimal 3 karakter."
+        });
+    }
+
+    if (password.length < 6) {
+        return res.status(400).json({
+            error: "Kata sandi harus terdiri dari minimal 6 karakter."
+        });
+    }
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailPattern.test(cleanEmail)) {
+        return res.status(400).json({
+            error: "Format alamat email tidak valid."
+        });
+    }
+
+    // Memeriksa ketersediaan username
+    const existingUsername = await db.execute({
+        sql: "SELECT id FROM users WHERE username = ?",
+        args: [cleanUsername]
     });
 
-    if (existingUser.rows.length > 0) {
+    if (existingUsername.rows.length > 0) {
         return res.status(409).json({
-            error: "Username already exists"
+            error: "Username telah digunakan. Silakan gunakan username lain."
+        });
+    }
+
+    // Memeriksa ketersediaan email
+    const existingEmail = await db.execute({
+        sql: "SELECT id FROM users WHERE email = ?",
+        args: [cleanEmail]
+    });
+
+    if (existingEmail.rows.length > 0) {
+        return res.status(409).json({
+            error: "Alamat email telah terdaftar."
         });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const result = await db.execute({
-        sql: "INSERT INTO users (username, password) VALUES (?, ?)",
-        args: [username.trim(), hashedPassword]
+        sql: `
+            INSERT INTO users
+            (full_name, username, email, password, role, account_status)
+            VALUES (?, ?, ?, ?, 'user', 'pending')
+        `,
+        args: [
+            cleanName,
+            cleanUsername,
+            cleanEmail,
+            hashedPassword
+        ]
     });
 
-    const newUser = await db.execute({
-        sql: "SELECT id, username, role FROM users WHERE id = ?",
-        args: [Number(result.lastInsertRowid)]
+    res.status(201).json({
+        message: "Pendaftaran berhasil. Akun Anda sedang menunggu persetujuan administrator.",
+        user: {
+            id: Number(result.lastInsertRowid),
+            full_name: cleanName,
+            username: cleanUsername,
+            email: cleanEmail,
+            role: "user",
+            account_status: "pending"
+        }
     });
-
-    res.status(201).json(newUser.rows[0]);
 });
 
 // ======================================
 // LOGIN USER
+// HANYA AKUN ACTIVE YANG BISA LOGIN
 // ======================================
 
 app.post("/login", async (req, res) => {
@@ -140,13 +234,13 @@ app.post("/login", async (req, res) => {
 
     if (!username || !password) {
         return res.status(400).json({
-            error: "Username dan password wajib diisi"
+            error: "Username dan kata sandi wajib diisi."
         });
     }
 
     if (!JWT_SECRET) {
         return res.status(500).json({
-            error: "JWT_SECRET belum dikonfigurasi"
+            error: "Konfigurasi JWT_SECRET belum tersedia."
         });
     }
 
@@ -159,7 +253,7 @@ app.post("/login", async (req, res) => {
 
     if (!user) {
         return res.status(401).json({
-            error: "Username atau password salah"
+            error: "Username atau kata sandi yang Anda masukkan salah."
         });
     }
 
@@ -170,7 +264,19 @@ app.post("/login", async (req, res) => {
 
     if (!passwordMatch) {
         return res.status(401).json({
-            error: "Username atau password salah"
+            error: "Username atau kata sandi yang Anda masukkan salah."
+        });
+    }
+
+    if (user.account_status === "pending") {
+        return res.status(403).json({
+            error: "Akun Anda masih menunggu persetujuan administrator."
+        });
+    }
+
+    if (user.account_status !== "active") {
+        return res.status(403).json({
+            error: "Akun Anda tidak aktif. Silakan hubungi administrator."
         });
     }
 
@@ -187,15 +293,107 @@ app.post("/login", async (req, res) => {
     );
 
     res.json({
-        message: "Login berhasil",
+        message: "Login berhasil.",
         token,
         user: {
             id: Number(user.id),
+            full_name: user.full_name,
             username: user.username,
+            email: user.email,
             role: user.role
         }
     });
 });
+
+// ======================================
+// ADMIN - GET SEMUA USER
+// ======================================
+
+app.get(
+    "/admin/users",
+    authenticateToken,
+    authorizeRole("admin"),
+    async (req, res) => {
+        const result = await db.execute(`
+            SELECT
+                id,
+                full_name,
+                username,
+                email,
+                role,
+                account_status
+            FROM users
+            ORDER BY
+                CASE account_status
+                    WHEN 'pending' THEN 1
+                    WHEN 'active' THEN 2
+                    WHEN 'rejected' THEN 3
+                    WHEN 'disabled' THEN 4
+                    ELSE 5
+                END,
+                id DESC
+        `);
+
+        res.json(result.rows);
+    }
+);
+
+// ======================================
+// ADMIN - UPDATE STATUS USER
+// ======================================
+
+app.patch(
+    "/admin/users/:id/status",
+    authenticateToken,
+    authorizeRole("admin"),
+    async (req, res) => {
+        const { id } = req.params;
+        const { account_status } = req.body;
+
+        const allowedStatuses = [
+            "active",
+            "rejected",
+            "disabled"
+        ];
+
+        if (!allowedStatuses.includes(account_status)) {
+            return res.status(400).json({
+                error: "Status akun yang diberikan tidak valid."
+            });
+        }
+
+        // Memastikan akun target merupakan pengguna biasa
+        const existingUser = await db.execute({
+            sql: "SELECT id, role FROM users WHERE id = ?",
+            args: [id]
+        });
+
+        const targetUser = existingUser.rows[0];
+
+        if (!targetUser) {
+            return res.status(404).json({
+                error: "Akun pengguna tidak ditemukan."
+            });
+        }
+
+        if (targetUser.role !== "user") {
+            return res.status(403).json({
+                error: "Status akun administrator tidak dapat diubah melalui endpoint ini."
+            });
+        }
+
+        await db.execute({
+            sql: "UPDATE users SET account_status = ? WHERE id = ?",
+            args: [account_status, id]
+        });
+
+        res.json({
+            message: "Status akun berhasil diperbarui.",
+            user_id: Number(id),
+            account_status
+        });
+    }
+);
 
 // ======================================
 // GET SEMUA TIKET
@@ -225,7 +423,7 @@ app.get("/tickets/:id", authenticateToken, async (req, res) => {
 
     if (result.rows.length === 0) {
         return res.status(404).json({
-            error: "Ticket not found"
+            error: "Tiket tidak ditemukan."
         });
     }
 
@@ -242,12 +440,15 @@ app.post("/tickets", authenticateToken, async (req, res) => {
 
     if (!title || title.trim() === "") {
         return res.status(400).json({
-            error: "Title is required"
+            error: "Judul tiket wajib diisi."
         });
     }
 
     const result = await db.execute({
-        sql: "INSERT INTO ticket (title, description, status) VALUES (?, ?, 'open')",
+        sql: `
+            INSERT INTO ticket (title, description, status)
+            VALUES (?, ?, 'open')
+        `,
         args: [title.trim(), description || ""]
     });
 
@@ -276,24 +477,28 @@ app.put("/tickets/:id", authenticateToken, async (req, res) => {
 
     if (!title || title.trim() === "") {
         return res.status(400).json({
-            error: "Title is required"
+            error: "Judul tiket wajib diisi."
         });
     }
 
     if (!validStatuses.includes(status)) {
         return res.status(400).json({
-            error: "Invalid status"
+            error: "Status tiket yang diberikan tidak valid."
         });
     }
 
     const result = await db.execute({
-        sql: "UPDATE ticket SET title = ?, description = ?, status = ? WHERE id = ?",
+        sql: `
+            UPDATE ticket
+            SET title = ?, description = ?, status = ?
+            WHERE id = ?
+        `,
         args: [title.trim(), description || "", status, id]
     });
 
     if (result.rowsAffected === 0) {
         return res.status(404).json({
-            error: "Ticket not found"
+            error: "Tiket tidak ditemukan."
         });
     }
 
@@ -324,7 +529,7 @@ app.delete(
 
         if (result.rowsAffected === 0) {
             return res.status(404).json({
-                error: "Ticket not found"
+                error: "Tiket tidak ditemukan."
             });
         }
 
@@ -340,7 +545,7 @@ app.use((err, req, res, next) => {
     console.error("Server error:", err);
 
     res.status(500).json({
-        error: "Internal server error"
+        error: "Terjadi kesalahan pada server. Silakan coba kembali."
     });
 });
 
@@ -350,7 +555,7 @@ app.use((err, req, res, next) => {
 
 if (process.env.NODE_ENV !== "production") {
     app.listen(PORT, () => {
-        console.log(`Server jalan di http://localhost:${PORT}`);
+        console.log(`Server berjalan di http://localhost:${PORT}`);
     });
 }
 
